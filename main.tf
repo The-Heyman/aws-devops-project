@@ -22,7 +22,7 @@ resource "aws_internet_gateway" "igw" {
 resource "aws_subnet" "subnet1" {
   vpc_id                = aws_vpc.vpc.id
   cidr_block            = "10.0.0.0/24"
-  availability_zone     = 1
+  availability_zone     = "us-east-2a"
 
   tags = {
     Name = "PublicSubnet1"
@@ -32,27 +32,27 @@ resource "aws_subnet" "subnet1" {
 resource "aws_subnet" "subnet2" {
   vpc_id                = aws_vpc.vpc.id
   cidr_block            = "10.0.1.0/24"
-  availability_zone     = 2
+  availability_zone     = "us-east-2b"
 
   tags = {
     Name = "PublicSubnet2"
   }
 }
 
-resource "aws_subnet" "subnet3" {
+resource "aws_subnet" "privateSubnet1" {
   vpc_id                = aws_vpc.vpc.id
   cidr_block            = "10.0.2.0/24"
-  availability_zone     = 1
+  availability_zone     = "us-east-2a"
 
   tags = {
     Name = "PrivateSubnet1"
   }
 }
 
-resource "aws_subnet" "subnet4" {
+resource "aws_subnet" "privateSubnet2" {
   vpc_id                = aws_vpc.vpc.id
   cidr_block            = "10.0.3.0/24"
-  availability_zone     = 2
+  availability_zone     = "us-east-2b"
 
   tags = {
     Name = "PrivateSubnet2"
@@ -91,4 +91,67 @@ resource "aws_nat_gateway" "ngw2" {
   tags = {
     Name = "gw NAT 2"
   }
+}
+
+# Private subnet 1 routing
+resource "aws_route_table" "privateRouteTable1" {
+  vpc_id = aws_vpc.vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.ngw1.id
+  }
+
+  tags = {
+    Name = "PrivateRouteTable1"
+  }
+}
+
+resource "aws_route_table_association" "privateSubnet1_rta" {
+  subnet_id      = aws_subnet.privateSubnet1.id
+  route_table_id = aws_route_table.privateRouteTable1.id
+}
+
+# Private subnet 2 routing
+resource "aws_route_table" "privateRouteTable2" {
+  vpc_id = aws_vpc.vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.ngw2.id
+  }
+
+  tags = {
+    Name = "PrivateRouteTable2"
+  }
+}
+
+resource "aws_route_table_association" "privateSubnet2_rta" {
+  subnet_id      = aws_subnet.privateSubnet2.id
+  route_table_id = aws_route_table.privateRouteTable2.id
+}
+
+
+# Public subnet routing
+resource "aws_route_table" "publicRouteTable" {
+  vpc_id = aws_vpc.vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "PublicRouteTable"
+  }
+}
+
+resource "aws_route_table_association" "public_rta1" {
+  subnet_id      = aws_subnet.subnet1.id
+  route_table_id = aws_route_table.publicRouteTable.id
+}
+
+resource "aws_route_table_association" "public_rta2" {
+  subnet_id      = aws_subnet.subnet2.id
+  route_table_id = aws_route_table.publicRouteTable.id
 }
