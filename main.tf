@@ -155,3 +155,56 @@ resource "aws_route_table_association" "public_rta2" {
   subnet_id      = aws_subnet.subnet2.id
   route_table_id = aws_route_table.publicRouteTable.id
 }
+
+# Add Network Security Groups for LB and Web Server
+
+
+resource "aws_security_group" "webServerSG" {
+  name        = "webServerSG"
+  description = "Allow HTTP to hosts and SSH from local only"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description = "http to hosts"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "ssh from local host"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 65535
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  }
+
+  resource "aws_security_group" "loadBalancerSG" {
+  name        = "loadBalancerSG"
+  description = "Allow HTTP to load balancer"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress {
+    description = "http to hosts"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  }
