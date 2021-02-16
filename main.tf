@@ -123,6 +123,13 @@ resource "aws_route_table" "privateRouteTable1" {
   }
 }
 
+# route
+# resource "aws_route" "private_nat_gateway" {
+#   route_table_id         = aws_route_table.privateRouteTable1.id
+#   destination_cidr_block = "0.0.0.0/0"
+#   nat_gateway_id             = aws_nat_gateway.ngw1.id
+# }
+
 resource "aws_route_table_association" "privateSubnet1_rta" {
   subnet_id      = aws_subnet.privateSubnet1.id
   route_table_id = aws_route_table.privateRouteTable1.id
@@ -141,7 +148,6 @@ resource "aws_route_table" "privateRouteTable2" {
     Name = "PrivateRouteTable2"
   }
 }
-
 resource "aws_route_table_association" "privateSubnet2_rta" {
   subnet_id      = aws_subnet.privateSubnet2.id
   route_table_id = aws_route_table.privateRouteTable2.id
@@ -152,14 +158,16 @@ resource "aws_route_table_association" "privateSubnet2_rta" {
 resource "aws_route_table" "publicRouteTable" {
   vpc_id = aws_vpc.vpc.id
 
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
   tags = {
     Name = "PublicRouteTable"
   }
+}
+
+# route public
+resource "aws_route" "public_internet_gateway" {
+  route_table_id         = aws_route_table.publicRouteTable.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw.id
 }
 
 resource "aws_route_table_association" "public_rta1" {
@@ -180,8 +188,8 @@ resource "aws_security_group" "webServerSG" {
 
   ingress {
     description = "http to hosts"
-    from_port   = 8080
-    to_port     = 8080
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -228,8 +236,8 @@ resource "aws_launch_configuration" "appLaunchConfig" {
   user_data       = file("install_server.sh")
   image_id        = data.aws_ami.ubuntu.id
   instance_type   = "t3.medium"
-  key_name        = "backup"
-  security_groups = ["webServerSG"]
+  key_name        = "awstestingkeys"
+  security_groups = [aws_security_group.webServerSG.id]
 
   lifecycle {
     create_before_destroy = true
@@ -240,7 +248,7 @@ resource "aws_launch_configuration" "appLaunchConfig" {
 # Add load balancer target group 
 resource "aws_lb_target_group" "webAppTargetGroup" {
   name     = "webAppTargetGroup"
-  port     = 8080
+  port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.vpc.id
 
@@ -257,7 +265,7 @@ resource "aws_autoscaling_group" "webappASG" {
   name                  = "webappASG"
   vpc_zone_identifier   = [aws_subnet.privateSubnet1.id, aws_subnet.privateSubnet2.id]
   min_size              = 2
-  max_size              = 5
+  max_size              = 4
   launch_configuration  = aws_launch_configuration.appLaunchConfig.name
   target_group_arns     = [aws_lb_target_group.webAppTargetGroup.arn]
 
@@ -306,4 +314,22 @@ resource "aws_lb_listener_rule" "static" {
       values = ["/"]
     }
   }
+}
+
+# Add jumphost for troubleshooting
+resource "aws_instance" "web" {
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  key_name = "MyEC2-Keys"
+  subnet_id                   = aws_subnet.subnet1.id
+  vpc_security_group_ids      = [aws_security_group.webServerSG.id]
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "Jumphost"
+  }
+}
+
+output "public_ip" {
+  value = aws_instance.web.public_ip
 }

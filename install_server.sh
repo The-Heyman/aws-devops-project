@@ -1,5 +1,7 @@
 #!/bin/bash
 
-sudo apt-get update -y
-sudo apt-get install apache2 -y
-sudo systemctl start apache2.service
+apt-get update -y
+apt-get install apache2 -y
+systemctl start apache2.service
+cd /var/www/html
+echo "my Demo Web Server is Up and Running!" > index.html
